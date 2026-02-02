@@ -8,8 +8,7 @@ internal static class Helper {
 
 	internal static async Task DownloadFile(HttpClient client, Uri uri, String destination, Predicate<FileInfo>? destinationPredicate = null) {
 		FileInfo fi = new(destination);
-		destinationPredicate ??= fileInfo => !fileInfo.Exists;
-		if (!destinationPredicate(fi)) return;
+		if (fi.Exists && destinationPredicate != null && !destinationPredicate(fi)) return;
 
 		Console.WriteLine($"Downloading {destination} from {uri}");
 		String targetFileAbs = Path.GetFullPath(destination);
@@ -21,5 +20,16 @@ internal static class Helper {
 		}
 
 		File.Move(tempFile, targetFileAbs, true);
+	}
+
+	public static Predicate<FileInfo> MaxAge(TimeSpan maxAge, TimeProvider? time = null) {
+		time ??= TimeProvider.System;
+		return fileInfo => {
+			DateTimeOffset lastWriteTime = fileInfo.LastWriteTimeUtc > fileInfo.CreationTimeUtc ? fileInfo.LastWriteTimeUtc : fileInfo.CreationTimeUtc;
+			DateTimeOffset now = time.GetUtcNow();
+			if (lastWriteTime > now) lastWriteTime = DateTimeOffset.MinValue;
+
+			return now - lastWriteTime > maxAge;
+		};
 	}
 }

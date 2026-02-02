@@ -96,26 +96,26 @@ public class CurrencyEntry {
 	public CcyNm CcyNm; 
 
 	[XmlElement(ElementName="Ccy")] 
-	public string? Ccy; 
+	public String? Ccy; 
 
 	[XmlElement(ElementName="CcyNbr")] 
-	public int CcyNbr; 
+	public UInt16 CcyNbr; 
 
 	[XmlElement(ElementName="CcyMnrUnts")] 
-	public string CcyMnrUnts; 
+	public String CcyMnrUnts; 
 
 	[XmlElement(ElementName="CtryNm")] 
-	public string CtryNm; 
+	public String CtryNm; 
 }
 
 [XmlRoot(ElementName="CcyNm")]
 public class CcyNm { 
 
 	[XmlAttribute(AttributeName="IsFund")] 
-	public bool IsFund; 
+	public Boolean IsFund; 
 
 	[XmlText] 
-	public string Text; 
+	public String Text; 
 }
 
 [XmlRoot(ElementName="CcyTbl")]
@@ -135,6 +135,6 @@ public class ISO4217 {
 	public DateTime Pblshd; 
 
 	[XmlText] 
-	public string Text; 
+	public String Text; 
 }
 

@@ -1,6 +1,5 @@
 ﻿namespace IsoEnums.Generator;
 
-using System.Collections.Frozen;
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.IO.Compression;
@@ -13,6 +12,7 @@ using CsvHelper;
 using CsvHelper.Configuration;
 using IsoEnums.Iso4217;
 using IsoEnums.Iso639;
+using Neco.Common;
 
 public static partial class Program {
 	public static async Task Main(String[] args) {
@@ -23,7 +23,10 @@ public static partial class Program {
 
 		Generate639LanguageEnum("../../../../IsoEnums/Iso639/Language.cs");
 		Generate3166CountryEnum("../../../../IsoEnums/Iso3166/Country.cs");
-		Generate4217CurrencyEnum("../../../../IsoEnums/Iso4217/Currency.cs");
+		CurrencyGenerator cg = new(Currencies);
+		cg.Generate4217CurrencyEnum("../../../../IsoEnums/Iso4217/Currency.cs");
+
+		UpdateStaticInformation("../../../../IsoEnums/GeoDataInfo.cs");
 	}
 
 	private static List<CurrencyEntry> Currencies { get; set; } = null!;
@@ -35,25 +38,27 @@ public static partial class Program {
 
 	private static async Task DownloadData() {
 		using HttpClient client = new();
+		Predicate<FileInfo> maxAge = Helper.MaxAge(TimeSpan.FromDays(7));
+		// Predicate<FileInfo> maxAge = Helper.MaxAge(TimeSpan.MaxValue);
 
 		// await Helper.DownloadFile(client, "https://download.geonames.org/export/dump/allCountries.zip", "data/geo/allCountries.zip");
 		// await Helper.DownloadFile(client, "https://download.geonames.org/export/dump/alternateNamesV2.zip", "data/geo/alternateNamesV2.zip");
-		await Helper.DownloadFile(client, "https://download.geonames.org/export/dump/countryInfo.txt", "data/geo/countryInfo.txt");
-		await Helper.DownloadFile(client, "https://download.geonames.org/export/dump/hierarchy.zip", "data/geo/hierarchy.zip");
-		await Helper.DownloadFile(client, "https://download.geonames.org/export/dump/adminCode5.zip", "data/geo/adminCode5.zip");
-		await Helper.DownloadFile(client, "https://download.geonames.org/export/dump/shapes_all_low.zip", "data/geo/countryShapes.zip");
-		await Helper.DownloadFile(client, "https://download.geonames.org/export/dump/shapes_simplified_low.json.zip", "data/geo/countryShapesSimplified.zip");
-		await Helper.DownloadFile(client, "https://download.geonames.org/export/dump/iso-languagecodes.txt", "data/geo/isoLanguageCodes.zip");
+		await Helper.DownloadFile(client, "https://download.geonames.org/export/dump/countryInfo.txt", "data/geo/countryInfo.txt", maxAge);
+		await Helper.DownloadFile(client, "https://download.geonames.org/export/dump/hierarchy.zip", "data/geo/hierarchy.zip", maxAge);
+		await Helper.DownloadFile(client, "https://download.geonames.org/export/dump/adminCode5.zip", "data/geo/adminCode5.zip", maxAge);
+		await Helper.DownloadFile(client, "https://download.geonames.org/export/dump/shapes_all_low.zip", "data/geo/countryShapes.zip", maxAge);
+		await Helper.DownloadFile(client, "https://download.geonames.org/export/dump/shapes_simplified_low.json.zip", "data/geo/countryShapesSimplified.zip", maxAge);
+		await Helper.DownloadFile(client, "https://download.geonames.org/export/dump/iso-languagecodes.txt", "data/geo/isoLanguageCodes.zip", maxAge);
 
 		// https://www.naturalearthdata.com/downloads/110m-cultural-vectors/110m-admin-0-countries/
-		await Helper.DownloadFile(client, "https://naciscdn.org/naturalearth/110m/cultural/ne_110m_admin_0_countries.zip", "data/geo/countryBoundaries.zip");
-		await Helper.DownloadFile(client, "https://raw.githubusercontent.com/datasets/country-codes/refs/heads/main/data/country-codes.csv", "data/geo/countryCodes.csv");
-		await Helper.DownloadFile(client, "https://raw.githubusercontent.com/unicode-org/cldr/refs/heads/main/common/supplemental/supplementalData.xml", "data/geo/unicodeSupplementalData.xml");
+		await Helper.DownloadFile(client, "https://naciscdn.org/naturalearth/110m/cultural/ne_110m_admin_0_countries.zip", "data/geo/countryBoundaries.zip", maxAge);
+		await Helper.DownloadFile(client, "https://raw.githubusercontent.com/datasets/country-codes/refs/heads/main/data/country-codes.csv", "data/geo/countryCodes.csv", maxAge);
+		await Helper.DownloadFile(client, "https://raw.githubusercontent.com/unicode-org/cldr/refs/heads/main/common/supplemental/supplementalData.xml", "data/geo/unicodeSupplementalData.xml", maxAge);
 
-		await Helper.DownloadFile(client, "https://www.loc.gov/standards/iso639-2/ISO-639-2_utf-8.txt", "data/geo/ISO-639-2_utf-8.txt");
+		await Helper.DownloadFile(client, "https://www.loc.gov/standards/iso639-2/ISO-639-2_utf-8.txt", "data/geo/ISO-639-2_utf-8.txt", maxAge);
 		// See here for new Link https://iso639-3.sil.org/code_tables/download_tables#Complete%20Code%20Tables
-		await Helper.DownloadFile(client, "https://iso639-3.sil.org/sites/iso639-3/files/downloads/iso-639-3_Code_Tables_20241010.zip", "data/geo/ISO-639-3.zip");
-		await Helper.DownloadFile(client, "https://www.six-group.com/dam/download/financial-information/data-center/iso-currrency/lists/list-one.xml", "data/geo/ISO-4217-currency.xml");
+		await Helper.DownloadFile(client, "https://iso639-3.sil.org/sites/iso639-3/files/downloads/iso-639-3_Code_Tables_20241010.zip", "data/geo/ISO-639-3.zip", maxAge);
+		await Helper.DownloadFile(client, "https://www.six-group.com/dam/download/financial-information/data-center/iso-currrency/lists/list-one.xml", "data/geo/ISO-4217-currency.xml", maxAge);
 	}
 
 	private static void ParseCountryData() {
@@ -83,81 +88,16 @@ public static partial class Program {
 
 	private static void ParseCurrencyData() {
 		using StreamReader streamReader = File.OpenText("data/geo/ISO-4217-currency.xml");
-		XmlSerializer serializer = new XmlSerializer(typeof(ISO4217));
+		XmlSerializer serializer = new(typeof(ISO4217));
 		ISO4217? currencies = (ISO4217?)serializer.Deserialize(streamReader);
 		if (currencies == null) return;
 
 		Currencies = currencies.CcyTbl.CcyNtry;
 	}
 
-	private static void Generate4217CurrencyEnum(String? fileoutput) {
-		StringBuilder sb = new();
-		AppendDefaultHeader(sb);
-		sb.AppendLine("namespace IsoEnums.Iso4217;");
-		sb.AppendLine("#region Designer generated code");
-		sb.AppendLine("public enum Currency {");
-		sb.AppendLine("///<summary>Not a currency.</summary>");
-		sb.AppendLine("NotACurrency=-1,");
-		sb.AppendLine("///<summary>Not a currency, but instead an uninitialized variable.</summary>");
-		sb.AppendLine("Uninitialized=0,");
-		Int32 numCurrencies = 0;
-
-		FrozenSet<String> codesToIgnore = [
-			// US Dollar (Next day),
-			"USN",
-			// SDR (Special Drawing Right)
-			"XDR",
-			// Bond Markets Unit European Composite Unit (EURCO)
-			"XBA",
-			// Bond Markets Unit European Monetary Unit (E.M.U.-6)
-			"XBB",
-			// Bond Markets Unit European Unit of Account 9 (E.U.A.-9)
-			"XBC",
-			// Bond Markets Unit European Unit of Account 17 (E.U.A.-17)
-			"XBD",
-			// ADB Unit of Account
-			"XUA",
-		];
-
-		String GetCurrencyName(CurrencyEntry currencyEntry) {
-			String name = Regex.Replace(currencyEntry.CcyNm.Text, @"[-’ \.]+", "");
-			name = Regex.Replace(name, @"\([A-Z]+\)$", "", RegexOptions.Singleline);
-
-			if (currencyEntry.Ccy == "XTS")
-				name = "TestCurrency";
-			if (currencyEntry.Ccy == "XXX")
-				name = "NoCurrencyInvolved";
-			return RemoveDiacritics(name);
-		}
-
-		foreach (IGrouping<String, CurrencyEntry> currencyEntries in Currencies.DistinctBy(cur => cur.Ccy).GroupBy(GetCurrencyName)) {
-			Boolean hasMultiple = currencyEntries.Count() > 1;
-			foreach (CurrencyEntry currencyEntry in currencyEntries) {
-				if (currencyEntry.Ccy == null || codesToIgnore.Contains(currencyEntry.Ccy.ToUpperInvariant()))
-					continue;
-
-				numCurrencies++;
-
-				sb.AppendLine("/// <summary>");
-				sb.AppendLine($"/// <para>{currencyEntry.CcyNm.Text}</para>");
-				sb.AppendLine("/// </summary>");
-				sb.AppendLine($"/// <value>id={currencyEntry.Ccy}, numeric={currencyEntry.CcyNbr}</value>");
-
-				sb.AppendLine($"{GetCurrencyName(currencyEntry)}{(hasMultiple ? $"_{currencyEntry.Ccy}" : String.Empty)}={CalculateFrom3And2Code(currencyEntry.Ccy, null)},");
-			}
-		}
-
-
-		sb.AppendLine("}");
-		sb.AppendLine("#endregion");
-		Console.WriteLine($"{numCurrencies} currencies created.");
-		if (fileoutput != null)
-			File.WriteAllText(fileoutput, sb.ToString().Trim(), new UTF8Encoding(false));
-	}
-
 	private static void Generate3166CountryEnum(String? fileoutput) {
 		StringBuilder sb = new();
-		AppendDefaultHeader(sb);
+		BaseGenerator.AppendDefaultHeader(sb);
 		sb.AppendLine("namespace IsoEnums.Iso3166;");
 		sb.AppendLine("#region Designer generated code");
 		sb.AppendLine("public enum Country {");
@@ -167,7 +107,7 @@ public static partial class Program {
 		sb.AppendLine("Uninitialized=0,");
 
 		Int32 numCountries = 0;
-		foreach (GeonamesCountryInfoEntry geonamesEntry in GeonamesCountryInfoEntries) {
+		foreach (GeonamesCountryInfoEntry geonamesEntry in GeonamesCountryInfoEntries.OrderBy(info => info.Country)) {
 			++numCountries;
 			DatasetsCountryCodesEntry? datasetEntry = DatasetsCountryCodesEntries.FirstOrDefault(c => c.ISO3166_1_Alpha_3 == geonamesEntry.ISO3);
 			String value = CalculateEnumValue(geonamesEntry);
@@ -179,7 +119,7 @@ public static partial class Program {
 			if (TryNotNullOrEmpty(out String? capital, geonamesEntry.Capital))
 				sb.AppendLine($"/// Capital: {capital}<br/>");
 			if (TryNotNullOrEmpty(out String? languages, geonamesEntry.Languages))
-				sb.AppendLine($"/// Languages: {String.Join(",", languages.Split(',').Select(str => LanguageHelper.GetLanguageByCode(str) == Language.Undetermined ? str : $"<see cref=\"Iso639.Language.{LanguageHelper.GetLanguageByCode(str)}\"/>"))}<br/>");
+				sb.AppendLine($"/// Languages: {String.Join(", ", languages.Split(',').Select(str => LanguageHelper.GetLanguageByCode(str) == Language.Undetermined ? str : $"<see cref=\"Iso639.Language.{LanguageHelper.GetLanguageByCode(str)}\">{LanguageHelper.GetLanguageByCode(str)}</see>"))}<br/>");
 			if (TryNotNullOrEmpty(out String? currency, geonamesEntry.CurrencyName)) {
 				String currencyInfo = $"{currency} ({geonamesEntry.CurrencyCode})";
 				if (CurrencyHelper.GetCurrencyBy3Code(geonamesEntry.CurrencyCode) != Currency.NotACurrency)
@@ -206,7 +146,7 @@ public static partial class Program {
 	}
 
 	private static Boolean TryNotNullOrEmpty([NotNullWhen(true)] out String? val, params String?[] data) {
-		foreach (String s in data) {
+		foreach (String? s in data) {
 			if (!String.IsNullOrEmpty(s)) {
 				val = s;
 				return true;
@@ -215,14 +155,6 @@ public static partial class Program {
 
 		val = null;
 		return false;
-	}
-
-	private static String NotNullOrEmpty(String fallback, params String?[] data) {
-		foreach (String? s in data) {
-			if (!String.IsNullOrEmpty(s)) return s;
-		}
-
-		return fallback;
 	}
 
 	private static String CalculateEnumValue(GeonamesCountryInfoEntry geonamesEntry) => CalculateFrom3And2Code(geonamesEntry.ISO3.ToLowerInvariant(), geonamesEntry.ISO.ToLowerInvariant());
@@ -242,26 +174,18 @@ public static partial class Program {
 		}
 	}
 
-	private static void AppendDefaultHeader(StringBuilder sb) {
-		sb.AppendLine("// <auto-generated>");
-		sb.AppendLine("//   This file was generated by a tool; you should avoid making direct changes.");
-		sb.AppendLine("// </auto-generated>");
-		sb.AppendLine(CultureInfo.InvariantCulture, $"// Generated on {DateTime.UtcNow:F} UTC");
-		sb.AppendLine();
-	}
-
 	private static void Generate639LanguageEnum(String? fileoutput) {
 		StringBuilder sb = new();
-		AppendDefaultHeader(sb);
+		BaseGenerator.AppendDefaultHeader(sb);
 		sb.AppendLine("namespace IsoEnums.Iso639;");
 		sb.AppendLine("#region Designer generated code");
 		sb.AppendLine("public enum Language {");
 		sb.AppendLine("///<summary>Not a language, but instead an uninitialized variable</summary>");
 		sb.AppendLine("Uninitialized=0,");
 
-		var nonExtinctLanguages = Iso639Entries.Where(entry => !entry.Language_Type.Equals("E", StringComparison.OrdinalIgnoreCase)).Select(entry => (entry, GetEnumName(entry))).OrderBy(tpl => tpl.Item2);
+		IOrderedEnumerable<(Iso639Entry entry, String)> nonExtinctLanguages = Iso639Entries.Where(entry => !entry.Language_Type.Equals("E", StringComparison.OrdinalIgnoreCase)).Select(entry => (entry, GetEnumName(entry))).OrderBy(tpl => tpl.Item2);
 		Int32 numLanguages = 0;
-		foreach (var groups in nonExtinctLanguages.GroupBy(tpl => tpl.Item2)) {
+		foreach (IGrouping<String, (Iso639Entry entry, String)> groups in nonExtinctLanguages.GroupBy(tpl => tpl.Item2)) {
 			Boolean hasMultiple = groups.Count() > 1;
 			foreach ((Iso639Entry iso639Entry, String maybeDuplicateName) in groups) {
 				++numLanguages;
@@ -320,13 +244,13 @@ public static partial class Program {
 	private static String CalculateFrom3And2Code(String code3, String? code2) {
 		ArgumentException.ThrowIfNullOrEmpty(code3);
 		Int32 idAsInteger = 1;
-		var id3Bytes = Encoding.ASCII.GetBytes(code3.ToLowerInvariant());
+		Byte[] id3Bytes = Encoding.ASCII.GetBytes(code3.ToLowerInvariant());
 		idAsInteger |= ((id3Bytes[0] - (Byte)'a') & 0b11111) << 1;
 		idAsInteger |= ((id3Bytes[1] - (Byte)'a') & 0b11111) << 6;
 		idAsInteger |= ((id3Bytes[2] - (Byte)'a') & 0b11111) << 11;
 
 		if (!String.IsNullOrWhiteSpace(code2)) {
-			var id2Bytes = Encoding.ASCII.GetBytes(code2.ToLowerInvariant());
+			Byte[] id2Bytes = Encoding.ASCII.GetBytes(code2.ToLowerInvariant());
 
 			idAsInteger |= 1 << 16;
 			idAsInteger |= ((id2Bytes[0] - (Byte)'a') & 0b11111) << 17;
@@ -342,25 +266,23 @@ public static partial class Program {
 		String rawName = nameEntry?.Inverted_Name ?? entry.Ref_Name;
 
 		//normalize
-		String name = RemoveDiacritics(rawName);
+		String name = BaseGenerator.RemoveDiacritics(rawName);
 
 		name = EmptyReplacementRegex().Replace(name, String.Empty);
 		name = UnderscoreReplacementRegex().Replace(name, "_");
 		return name.Trim('_', ' ');
 	}
 
-	private static String RemoveDiacritics(String text) {
-		var normalizedString = text.Normalize(NormalizationForm.FormD);
-		var stringBuilder = new StringBuilder();
+	private static void UpdateStaticInformation(String file) {
+		ArgumentNullException.ThrowIfNull(file);
+		if (!File.Exists(file)) throw new FileNotFoundException("Unable to update static information", file);
 
-		foreach (var c in normalizedString.EnumerateRunes()) {
-			var unicodeCategory = Rune.GetUnicodeCategory(c);
-			if (unicodeCategory != UnicodeCategory.NonSpacingMark) {
-				stringBuilder.Append(c);
-			}
-		}
+		String staticData = File.ReadAllText(file, MagicNumbers.Utf8NoBom);
 
-		return stringBuilder.ToString().Normalize(NormalizationForm.FormC);
+		DateOnly now = DateOnly.FromDateTime(DateTime.UtcNow);
+		staticData = Regex.Replace(staticData, @"LastUpdated\s*=\s*new\s*\(\s*\d+\s*,\s*\d+\s*,\s*\d+\s*", $"LastUpdated = new({now.Year},{now.Month},{now.Day}");
+		
+		File.WriteAllText(file, staticData, MagicNumbers.Utf8NoBom);
 	}
 
 	[GeneratedRegex("[^a-zA-Z]+")]

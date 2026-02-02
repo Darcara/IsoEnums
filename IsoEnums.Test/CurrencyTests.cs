@@ -40,6 +40,24 @@ public class CurrencyTests {
 		}
 		CurrencyHelper.GetCurrencyBy3Code(bytes).Should().Be(language);
 	}
+	
+	[TestCase(Currency.Afghani, 971)]
+	[TestCase(Currency.Euro, 978)]
+	[TestCase(Currency.Loti, 426)]
+	[TestCase(Currency.SomaliShilling, 706)]
+	[TestCase(Currency.NoCurrencyInvolved, 999)]
+	[TestCase(-2, 0)]
+	[TestCase(Currency.Uninitialized, 0)]
+	[TestCase(Currency.NotACurrency, 0)]
+	public void CanGetNumericCode(Currency currency, Int32 code) {
+		currency.GetNumericCode().Should().Be(code);
+		if (code == 0) {
+			CurrencyHelper.GetCurrencyByNumericCode(code).Should().Be(Currency.NotACurrency);
+		} else {
+			CurrencyHelper.CreateFastNumericCodeLookup()[code].Should().Be(currency);
+			CurrencyHelper.GetCurrencyByNumericCode(code).Should().Be(currency);
+		}
+	}
 
 	[Category("Benchmark")]
 	[Test]
