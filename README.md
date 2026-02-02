@@ -5,7 +5,9 @@
 
 # Common
 
-All enums have the value ``0`` as ``Uninitialized``
+All enums have the value `0` as `Uninitialized`
+
+Values that have been removed recently, will still be available in the enums, but are annotated with the `[Obsolete]` Attribute 
 
 # ISO639 Language
 
@@ -30,8 +32,7 @@ Language english = LanguageHelper.GetLanguageBy2Code("en");
 Language english = LanguageHelper.GetLanguageBy2Code("en-us");
 Language english = LanguageHelper.GetLanguageBy3Code("eng");
 
-
-// For many lookup use Dictionaries from LanguageHelper
+// For bulk lookups use the Dictionaries from LanguageHelper
 FrozenDictionary<String, Language> lookup = LanguageHelper.CreateFast2CodeLookup();
 Language english = lookup["en"];
 

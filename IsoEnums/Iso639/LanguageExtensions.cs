@@ -1,6 +1,13 @@
 ﻿namespace IsoEnums.Iso639;
 
+/// <summary>
+/// Extensions for the <see cref="Language"/> enum
+/// </summary>
 public static class LanguageExtensions {
+	/// <summary>
+	/// Returns TRUE if this language has a 2-code (like 'en' for <see cref="Language.English"/> that can be retrieved with <see cref="Get2Code"/>
+	/// </summary>
+	/// <remarks>Not all Language have 2-codes, prefer to use <see cref="Get3Code"/> instead</remarks>
 	public static Boolean Has2Code(this Language language) {
 		if (!Enum.IsDefined(language) || language == Language.Uninitialized) return false;
 		UInt32 value = ((UInt32)language) & 0xFFFF0000;

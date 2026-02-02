@@ -1,11 +1,12 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
     <PropertyGroup>
         <ProjectGuid>43909911-EB96-4A66-A525-9D25DA7736E7</ProjectGuid>
-        <TargetFramework>net9.0</TargetFramework>
+        <TargetFramework>net10.0</TargetFramework>
         <ImplicitUsings>disable</ImplicitUsings>
         <Nullable>enable</Nullable>
         <LangVersion>latest</LangVersion>
         <OutputType>Library</OutputType>
+        <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
         <IsTrimmable>true</IsTrimmable>
         <IsAotCompatible>true</IsAotCompatible>
         <EnableTrimAnalyzer>true</EnableTrimAnalyzer>
@@ -17,7 +18,7 @@
     </PropertyGroup>
 
     <PropertyGroup>
-        <PackageVersion>1.1.0</PackageVersion>
+        <PackageVersion>2026.2.0</PackageVersion>
         <Title>IsoEnums</Title>
         <PackageId>IsoEnums</PackageId>
         <Authors>Darcara</Authors>
@@ -25,14 +26,15 @@
         <PackageReadmeFile>README.md</PackageReadmeFile>
         <PackageLicenseFile>LICENSE</PackageLicenseFile>
         <Description>ISO639 Language, ISO3166 Country and ISO4217 Currency enums and conversion</Description>
-        <PackageProjectUrl>https://github.com/Darcara/TextAnalysis</PackageProjectUrl>
-        <RepositoryUrl>https://github.com/Darcara/TextAnalysis</RepositoryUrl>
+        <PackageProjectUrl>https://github.com/Darcara/IsoEnums</PackageProjectUrl>
+        <RepositoryUrl>https://github.com/Darcara/IsoEnums</RepositoryUrl>
         <PackageTags>Language, ISO639, Country, ISO3166, Currency, ISO4217</PackageTags>
         <IncludeSymbols>true</IncludeSymbols>
         <SymbolPackageFormat>snupkg</SymbolPackageFormat>
         <EmbedAllSources>true</EmbedAllSources>
         <GenerateDocumentationFile>true</GenerateDocumentationFile>
         <PublishDocumentationFile>true</PublishDocumentationFile>
+        <PublishRepositoryUrl>true</PublishRepositoryUrl>
         <DebugType>portable</DebugType>
     </PropertyGroup>
 

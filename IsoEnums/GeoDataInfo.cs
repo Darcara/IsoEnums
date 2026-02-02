@@ -1,7 +1,5 @@
-﻿namespace IsoEnums;
-
-using System.Globalization;
+namespace IsoEnums;
 
 public static class GeoDataInfo {
-	public static readonly DateTime LastUpdated = DateTime.Parse("2025-02-19T12:00:00", DateTimeFormatInfo.InvariantInfo, DateTimeStyles.AssumeUniversal | DateTimeStyles.NoCurrentDateDefault);
+	public static readonly DateOnly LastUpdated = new(2026,2,2);
 }

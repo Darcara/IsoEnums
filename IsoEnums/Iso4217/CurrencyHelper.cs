@@ -5,7 +5,8 @@ using System.Collections.Frozen;
 public static class CurrencyHelper {
 	public const String Unavailable3 = "???";
 	internal static ReadOnlySpan<Byte> Unavailable3Bytes => "???"u8;
-	public static FrozenDictionary<String, Currency> CreateFast3CodeLookup() => Enum.GetValues<Currency>().Where(l => l > Currency.Uninitialized).ToFrozenDictionary(l => l.Get3Code(), l => l, StringComparer.OrdinalIgnoreCase);
+	public static FrozenDictionary<String, Currency> CreateFast3CodeLookup() => Enum.GetValues<Currency>().Where(l => l != Currency.Uninitialized && l != Currency.NotACurrency).ToFrozenDictionary(l => l.Get3Code(), l => l, StringComparer.OrdinalIgnoreCase);
+	public static FrozenDictionary<Int32, Currency> CreateFastNumericCodeLookup() => Enum.GetValues<Currency>().Where(l => l != Currency.Uninitialized && l != Currency.NotACurrency).ToFrozenDictionary(l => l.GetNumericCode(), l => l);
 
 	/// <summary>
 	/// 
@@ -35,6 +36,16 @@ public static class CurrencyHelper {
 		foreach (Currency currency in Enum.GetValues<Currency>()) {
 			currency.Get3CodeBytes(codeBuffer);
 			if (lower.SequenceEqual(codeBuffer)) return currency;
+		}
+
+		return Currency.NotACurrency;
+	}
+	
+	public static Currency GetCurrencyByNumericCode(Int32 currencyNumericCode) {
+		if (currencyNumericCode <= 0 || currencyNumericCode >= 1000) return Currency.NotACurrency;
+
+		foreach (Currency currency in Enum.GetValues<Currency>()) {
+			if (currency.GetNumericCode() == currencyNumericCode) return currency;
 		}
 
 		return Currency.NotACurrency;
