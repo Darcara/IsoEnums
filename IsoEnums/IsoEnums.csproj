@@ -18,7 +18,7 @@
     </PropertyGroup>
 
     <PropertyGroup>
-        <PackageVersion>2026.2.0</PackageVersion>
+        <PackageVersion>2026.2.1</PackageVersion>
         <Title>IsoEnums</Title>
         <PackageId>IsoEnums</PackageId>
         <Authors>Darcara</Authors>
