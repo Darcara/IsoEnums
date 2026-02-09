@@ -29,7 +29,11 @@ internal static class Helper {
 			DateTimeOffset now = time.GetUtcNow();
 			if (lastWriteTime > now) lastWriteTime = DateTimeOffset.MinValue;
 
-			return now - lastWriteTime > maxAge;
+			TimeSpan age = now - lastWriteTime;
+			Boolean shouldDownload = age > maxAge;
+			if(!shouldDownload)
+				Console.WriteLine($"{fileInfo.Name} from {lastWriteTime:f} age {age:c} will not be downloaded");
+			return shouldDownload;
 		};
 	}
 }

@@ -41,7 +41,7 @@ internal class CurrencyGenerator {
 		];
 
 		HashSet<GenericEnumMember> generatedCurrencies = [];
-		generatedCurrencies.Add(new("NotACurrency", "-1", "/// <summary>Not a currency.</summary>", -1));
+		generatedCurrencies.Add(new("NotACurrency", "-1", "/// <summary>Not a currency.</summary>", -2));
 		generatedCurrencies.Add(new("Uninitialized", "0", "/// <summary>Not a currency, but instead an uninitialized variable.</summary>", -1));
 
 		foreach (IGrouping<String, CurrencyEntry> currencyEntries in _currencies.DistinctBy(cur => cur.Ccy).GroupBy(GetCurrencyName)) {
@@ -56,7 +56,7 @@ internal class CurrencyGenerator {
 			}
 		}
 
-		HashSet<GenericEnumMember> missingCurrencies = GetCurrentlyAvailableCurrencies();
+		HashSet<GenericEnumMember> missingCurrencies = BaseGenerator.GetCurrentlyAvailableEnumMembers<Currency>();
 		missingCurrencies.ExceptWith(generatedCurrencies);
 		// Exception on missing obsoletion is beneficial
 		missingCurrencies.ForEach(c => c.ObsoletionNotice = Obsoletion.Currency[c.EnumName]);
@@ -80,28 +80,6 @@ internal class CurrencyGenerator {
 		if (currencyEntry.Ccy == "XXX")
 			name = "NoCurrencyInvolved";
 		return BaseGenerator.RemoveDiacritics(name);
-	}
-
-	private HashSet<GenericEnumMember> GetCurrentlyAvailableCurrencies() {
-		XmlDocument isoEnumsDocumentation = new();
-		isoEnumsDocumentation.PreserveWhitespace = true;
-		XmlReaderSettings readerSettings = new() {
-			IgnoreWhitespace = false,
-		};
-		using FileStream fileStream = File.OpenRead("IsoEnums.xml");
-		using XmlReader reader = XmlReader.Create(fileStream, readerSettings);
-		isoEnumsDocumentation.Load(reader);
-
-		HashSet<GenericEnumMember> knownCurrencies = [];
-		const String nodeNamePrefix = "F:IsoEnums.Iso4217.Currency.";
-		foreach (XmlElement node in isoEnumsDocumentation.SelectNodes($"/doc/members/member[starts-with(@name,'{nodeNamePrefix}')]")!) {
-			String documentation = String.Join(Environment.NewLine, node.InnerXml.Trim().Split(['\r','\n'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).Select(line => $"/// {line}"));
-			String nodeName = node.GetAttribute("name").Substring(nodeNamePrefix.Length);
-			Currency currency = Enum.Parse<Currency>(nodeName);
-			knownCurrencies.Add(new GenericEnumMember(nodeName, ((Int32)currency).ToString(BaseGenerator.NumberFormatForEnums), documentation));
-		}
-
-		return knownCurrencies;
 	}
 
 	// 26 letters need 5 bytes to encode

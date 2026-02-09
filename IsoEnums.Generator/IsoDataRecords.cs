@@ -3,10 +3,24 @@
 namespace IsoEnums.Generator;
 
 using System.Xml.Serialization;
+using CsvHelper.Configuration.Attributes;
 
 public sealed record Iso639Entry(String Id, String Part2b, String Part2t, String Part1, String Scope, String Language_Type, String Ref_Name, String Comment);
 
 public sealed record Iso639NameEntry(String Id, String Print_Name, String Inverted_Name);
+
+public sealed record Iso6392Entry {
+	[Index(0)]
+	public String Alpha3 { get; set; }
+	[Index(1)]
+	public String Alpha3Alt { get; set; }
+	[Index(2)]
+	public String Alpha2 { get; set; }
+	[Index(3)]
+	public String EnglishName { get; set; }
+	[Index(4)]
+	public String FrenchName { get; set; }
+}
 
 public sealed record DatasetsCountryCodesEntry {
 	public String FIFA;

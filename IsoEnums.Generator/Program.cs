@@ -21,8 +21,11 @@ public static partial class Program {
 		ParseCountryData();
 		ParseCurrencyData();
 
-		Generate639LanguageEnum("../../../../IsoEnums/Iso639/Language.cs");
+		LanguageGenerator lg = new(Iso639Entries, Iso639NameEntries, Iso6392Entries);
+		lg.Generate639LanguageEnum("../../../../IsoEnums/Iso639/Language.cs");
+		
 		Generate3166CountryEnum("../../../../IsoEnums/Iso3166/Country.cs");
+		
 		CurrencyGenerator cg = new(Currencies);
 		cg.Generate4217CurrencyEnum("../../../../IsoEnums/Iso4217/Currency.cs");
 
@@ -32,14 +35,18 @@ public static partial class Program {
 	private static List<CurrencyEntry> Currencies { get; set; } = null!;
 	private static List<Iso639Entry> Iso639Entries { get; set; } = null!;
 	private static List<Iso639NameEntry> Iso639NameEntries { get; set; } = null!;
+	private static List<Iso6392Entry> Iso6392Entries { get; set; } = null!;
 
 	private static List<DatasetsCountryCodesEntry> DatasetsCountryCodesEntries { get; set; } = null!;
 	private static List<GeonamesCountryInfoEntry> GeonamesCountryInfoEntries { get; set; } = null!;
 
 	private static async Task DownloadData() {
 		using HttpClient client = new();
+#if DEBUG
 		Predicate<FileInfo> maxAge = Helper.MaxAge(TimeSpan.FromDays(7));
-		// Predicate<FileInfo> maxAge = Helper.MaxAge(TimeSpan.MaxValue);
+#else
+		Predicate<FileInfo> maxAge = Helper.MaxAge(TimeSpan.Zero);
+#endif
 
 		// await Helper.DownloadFile(client, "https://download.geonames.org/export/dump/allCountries.zip", "data/geo/allCountries.zip");
 		// await Helper.DownloadFile(client, "https://download.geonames.org/export/dump/alternateNamesV2.zip", "data/geo/alternateNamesV2.zip");
@@ -157,7 +164,7 @@ public static partial class Program {
 		return false;
 	}
 
-	private static String CalculateEnumValue(GeonamesCountryInfoEntry geonamesEntry) => CalculateFrom3And2Code(geonamesEntry.ISO3.ToLowerInvariant(), geonamesEntry.ISO.ToLowerInvariant());
+	private static String CalculateEnumValue(GeonamesCountryInfoEntry geonamesEntry) => BaseGenerator.CalculateFrom3And2Code(geonamesEntry.ISO3.ToLowerInvariant(), geonamesEntry.ISO.ToLowerInvariant());
 
 	private static void ParseLanguageData() {
 		// ISO-639-3.zip
@@ -172,105 +179,17 @@ public static partial class Program {
 		using (CsvReader csvReader = new(new StreamReader(archive.Entries.First(entry => entry.Name.EndsWith("iso-639-3_Name_Index.tab", StringComparison.OrdinalIgnoreCase)).Open(), Encoding.UTF8, false, leaveOpen: false), config, leaveOpen: false)) {
 			Iso639NameEntries = csvReader.GetRecords<Iso639NameEntry>().ToList();
 		}
-	}
 
-	private static void Generate639LanguageEnum(String? fileoutput) {
-		StringBuilder sb = new();
-		BaseGenerator.AppendDefaultHeader(sb);
-		sb.AppendLine("namespace IsoEnums.Iso639;");
-		sb.AppendLine("#region Designer generated code");
-		sb.AppendLine("public enum Language {");
-		sb.AppendLine("///<summary>Not a language, but instead an uninitialized variable</summary>");
-		sb.AppendLine("Uninitialized=0,");
+		// ISO-639-2_utf-8.txt -- https://www.loc.gov/standards/iso639-2/langhome.html
+		CsvConfiguration iso6392Config = CsvConfiguration.FromAttributes<Iso6392Entry>(CultureInfo.InvariantCulture);
+		iso6392Config.Delimiter = "|";
+		iso6392Config.HasHeaderRecord = false;
+		// iso6392Config.MissingFieldFound = null;
 
-		IOrderedEnumerable<(Iso639Entry entry, String)> nonExtinctLanguages = Iso639Entries.Where(entry => !entry.Language_Type.Equals("E", StringComparison.OrdinalIgnoreCase)).Select(entry => (entry, GetEnumName(entry))).OrderBy(tpl => tpl.Item2);
-		Int32 numLanguages = 0;
-		foreach (IGrouping<String, (Iso639Entry entry, String)> groups in nonExtinctLanguages.GroupBy(tpl => tpl.Item2)) {
-			Boolean hasMultiple = groups.Count() > 1;
-			foreach ((Iso639Entry iso639Entry, String maybeDuplicateName) in groups) {
-				++numLanguages;
-				String name = hasMultiple ? $"{maybeDuplicateName}_{iso639Entry.Id}" : maybeDuplicateName;
-				String scope = iso639Entry.Scope switch {
-					"I" => "Individual ",
-					"M" => "Meta ",
-					_ => String.Empty,
-				};
-
-				String type = iso639Entry.Language_Type switch {
-					"A" => "Ancient ",
-					"E" => "Extinct ",
-					"C" => "Constructed ",
-					"L" => String.Empty,
-					_ => String.Empty,
-				};
-
-				String value = CalculateEnumValue(iso639Entry);
-				sb.AppendLine("/// <summary>");
-				sb.AppendLine($"/// <para><a href=\"https://en.wikipedia.org/wiki/ISO_639:{iso639Entry.Id}\">{iso639Entry.Ref_Name}</a></para>");
-				sb.AppendLine($"/// {scope}{type}Language");
-				sb.AppendLine("/// </summary>");
-				sb.Append($"/// <value>id={iso639Entry.Id}");
-				if (!String.IsNullOrWhiteSpace(iso639Entry.Part1))
-					sb.Append($"; 2code={iso639Entry.Part1}");
-				String otherIds = String.Join(", ", Enumerable.Distinct([iso639Entry.Part2b, iso639Entry.Part2t]).Where(id => id != String.Empty && id != iso639Entry.Id));
-				if (!String.IsNullOrEmpty(otherIds))
-					sb.Append($"; other={otherIds}");
-				sb.AppendLine("</value>");
-
-				String alsoKnownAs = String.Join(", ", Iso639NameEntries.Where(nameEntry => nameEntry.Id == iso639Entry.Id && nameEntry.Print_Name != iso639Entry.Ref_Name).Select(nameEntry => nameEntry.Print_Name));
-				if (!String.IsNullOrEmpty(alsoKnownAs))
-					sb.AppendLine($"/// <remarks>Also known as: {alsoKnownAs}</remarks>");
-				sb.AppendLine($"{name}={value},");
-
-				sb.AppendLine();
-			}
+		String iso6392Data = File.ReadAllText("data/geo/ISO-639-2_utf-8.txt");
+		using (CsvReader csvReader = new(new StringReader(iso6392Data), iso6392Config, leaveOpen: false)) {
+			Iso6392Entries = csvReader.GetRecords<Iso6392Entry>().ToList();
 		}
-
-
-		sb.AppendLine("}");
-		sb.AppendLine("#endregion");
-		Console.WriteLine($"{numLanguages} languages created.");
-		if (fileoutput != null)
-			File.WriteAllText(fileoutput, sb.ToString().Trim(), new UTF8Encoding(false));
-	}
-
-	// 26 letters need 5 bytes to encode
-	// byte 0 is reserved and always 1
-	// 3-letter Id of ISO639-3 needs 15 bytes
-	// byte 16 is reserved and only 1 when a 2-letter Part1 is available
-	// 2-letter Part1 of ISO639-1 needs 10 Bytes, but we will start at byte 17
-	private static String CalculateEnumValue(Iso639Entry entry) => CalculateFrom3And2Code(entry.Id.ToLowerInvariant(), entry.Part1.ToLowerInvariant());
-
-	private static String CalculateFrom3And2Code(String code3, String? code2) {
-		ArgumentException.ThrowIfNullOrEmpty(code3);
-		Int32 idAsInteger = 1;
-		Byte[] id3Bytes = Encoding.ASCII.GetBytes(code3.ToLowerInvariant());
-		idAsInteger |= ((id3Bytes[0] - (Byte)'a') & 0b11111) << 1;
-		idAsInteger |= ((id3Bytes[1] - (Byte)'a') & 0b11111) << 6;
-		idAsInteger |= ((id3Bytes[2] - (Byte)'a') & 0b11111) << 11;
-
-		if (!String.IsNullOrWhiteSpace(code2)) {
-			Byte[] id2Bytes = Encoding.ASCII.GetBytes(code2.ToLowerInvariant());
-
-			idAsInteger |= 1 << 16;
-			idAsInteger |= ((id2Bytes[0] - (Byte)'a') & 0b11111) << 17;
-			idAsInteger |= ((id2Bytes[1] - (Byte)'a') & 0b11111) << 22;
-		}
-
-
-		return idAsInteger.ToString("N0", new NumberFormatInfo() { NumberGroupSeparator = "_" });
-	}
-
-	private static String GetEnumName(Iso639Entry entry) {
-		Iso639NameEntry? nameEntry = Iso639NameEntries.FirstOrDefault(nameEntry => nameEntry.Id == entry.Id && nameEntry.Print_Name == entry.Ref_Name);
-		String rawName = nameEntry?.Inverted_Name ?? entry.Ref_Name;
-
-		//normalize
-		String name = BaseGenerator.RemoveDiacritics(rawName);
-
-		name = EmptyReplacementRegex().Replace(name, String.Empty);
-		name = UnderscoreReplacementRegex().Replace(name, "_");
-		return name.Trim('_', ' ');
 	}
 
 	private static void UpdateStaticInformation(String file) {
@@ -281,13 +200,8 @@ public static partial class Program {
 
 		DateOnly now = DateOnly.FromDateTime(DateTime.UtcNow);
 		staticData = Regex.Replace(staticData, @"LastUpdated\s*=\s*new\s*\(\s*\d+\s*,\s*\d+\s*,\s*\d+\s*", $"LastUpdated = new({now.Year},{now.Month},{now.Day}");
-		
+
 		File.WriteAllText(file, staticData, MagicNumbers.Utf8NoBom);
 	}
 
-	[GeneratedRegex("[^a-zA-Z]+")]
-	private static partial Regex UnderscoreReplacementRegex();
-
-	[GeneratedRegex("[']+")]
-	private static partial Regex EmptyReplacementRegex();
 }
